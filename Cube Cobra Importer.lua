@@ -41,62 +41,29 @@ end
 function csvSplit(str)
     local t = {}
     local temp = str
-    local commaIndex = string.find(temp, ",")
-    local quoteIndex = string.find(temp, "\"")
-    local quoteCount = 1
-    --index of real comma
-    local i = 2
-    if quoteIndex == 1 then
-        while i <= #temp and quoteCount % 2 ~= 0 and temp[i] ~= "," do
-            if string.sub(temp, i, i) == "\"" then
-                quoteCount = quoteCount + 1
-            end
-            i = i + 1
-        end
-    end
-    while commaIndex ~= nil do
-        if quoteIndex == 1 then
-            table.insert(t, string.sub(temp, 2, i-2))
-            temp = string.sub(temp, i+1)
-            commaIndex = string.find(temp, ",")
-            quoteIndex = string.find(temp, "\"")
-            quoteCount = 1
-            i = 2
-            if quoteIndex == 1 then
-                while i <= #temp and quoteCount % 2 ~= 0 and temp[i] ~= "," do
-                    if string.sub(temp, i, i) == "\"" then
-                        quoteCount = quoteCount + 1
-                    end
-                    i = i + 1
+    local i = 1
+    while i <= #temp do
+        local j = i
+        local openQuotes = 0
+        while j <= #temp and not (string.sub(temp, j, j) == "," and openQuotes == 0) do
+            if string.sub(temp, j, j) == "\"" then
+                if openQuotes == 0 then
+                    openQuotes = 1
+                else
+                    openQuotes = 0
                 end
             end
+            
+            j = j + 1
+        end
+        
+        if j > #temp then
+            table.insert(t, string.sub(temp, i, #temp))
+            i = j
         else
-            table.insert(t, string.sub(temp, 1, commaIndex-1))
-            temp = string.sub(temp, commaIndex+1)
-            commaIndex = string.find(temp, ",")
-            quoteIndex = string.find(temp, "\"")
-            quoteCount = 1
-            i = 2
-            if quoteIndex == 1 then
-                while i <= #temp and quoteCount % 2 ~= 0 and temp[i] ~= "," do
-                    if string.sub(temp, i, i) == "\"" then
-                        quoteCount = quoteCount + 1
-                    end
-                    i = i + 1
-                end
-            end
+            table.insert(t, string.sub(temp, i, j-1))
+            i = j + 1
         end
-    end
-    if quoteIndex == 1 then
-        while i <= #temp and quoteCount % 2 ~= 0 and temp[i] ~= "," do
-            if string.sub(temp, i, i) == "\"" then
-                quoteCount = quoteCount + 1
-            end
-            i = i + 1
-        end
-        table.insert(t, string.sub(temp, 2, i-2))
-    else
-        table.insert(t, temp) 
     end
     return t
 end
