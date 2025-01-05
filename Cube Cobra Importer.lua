@@ -44,14 +44,10 @@ function csvSplit(str)
     local i = 1
     while i <= #temp do
         local j = i
-        local openQuotes = 0
-        while j <= #temp and not (string.sub(temp, j, j) == "," and openQuotes == 0) do
+        local quotes = 0
+        while j <= #temp and not (string.sub(temp, j, j) == "," and quotes % 2 == 0) do
             if string.sub(temp, j, j) == "\"" then
-                if openQuotes == 0 then
-                    openQuotes = 1
-                else
-                    openQuotes = 0
-                end
+                quotes = quotes + 1
             end
             
             j = j + 1
