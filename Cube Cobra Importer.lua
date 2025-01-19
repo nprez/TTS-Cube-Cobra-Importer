@@ -64,11 +64,15 @@ function csvSplit(str)
     return t
 end
 
-function createCard(name, cardFace, cardBack, player, hOffset, cubeIndex)
+function createCard(name, cardFace, cardBack, player, hOffset, cubeIndex, customImg)
     local customCardData = {
         face = cardFace,
         back = cardBack
     }
+    if customImg ~= nil and #customImg > 0 then
+        customImg = string.sub(customImg, 2, #customImg-1)
+        customCardData.face = customImg
+    end
 
     local playerSeat = player.getHandTransform()
     local shiftForward = 1
@@ -119,10 +123,15 @@ self.createButton({
 
 function import(obj, color, alt_click)
     local url = "https://cubecobra.com/cube/download/csv/"..urlencode(cubeId)
+    printToAll("Importing from "..url, {r=255, g=255, b=255})
     WebRequest.get(
         url,
         function(data)
-            parseCubeCobraData(data, color)
+            if data.is_error then
+                printToAll(data.error, {r=255, g=0, b=0})
+            else
+               parseCubeCobraData(data, color) 
+            end
         end
     )
 end
@@ -134,6 +143,7 @@ function parseCubeCobraData(data, color)
     local setCol = 5
     local collectorCol = 6
     local maybeBoardCol = 11
+    local customImgCol = 12
     for i,columnHeader in ipairs(headers) do
         if columnHeader == "Name" then
             nameCol = i
@@ -155,7 +165,7 @@ function parseCubeCobraData(data, color)
                     WebRequest.get(
                         url,
                         function(data)
-                            parseCardData(data, color, i, card[nameCol], url)
+                            parseCardData(data, color, i, card[nameCol], url, card[customImgCol])
                         end
                     )
                 end,
@@ -165,7 +175,7 @@ function parseCubeCobraData(data, color)
     end
 end
 
-function parseCardData(data, color, index, cardName, url)
+function parseCardData(data, color, index, cardName, url, customImg)
     local cardData = JSON.decode(data.text)
     local status, err = pcall(function () JSON.decode(data.text) end)
     if data.is_error or not status or cardData["status"] == 429 then
@@ -175,7 +185,7 @@ function parseCardData(data, color, index, cardName, url)
                     WebRequest.get(
                         url,
                         function(data)
-                            parseCardData(data, color, index, cardName, url)
+                            parseCardData(data, color, index, cardName, url, customImg)
                         end
                     )
                 end,
@@ -183,7 +193,7 @@ function parseCardData(data, color, index, cardName, url)
             )
             return
         else
-            printToAll("Card not found: "..cardName, {r=255, g=255, b=255})
+            printToAll("Card not found: "..cardName, {r=255, g=0, b=0})
             return
         end
     end
@@ -192,14 +202,14 @@ function parseCardData(data, color, index, cardName, url)
     if cardData["card_faces"] ~= nil and #cardData["card_faces"] > 1 and cardData["card_faces"][1]["image_uris"] ~= nil then
         cardFront = cardData["card_faces"][1]["image_uris"]["normal"]
         local cardBack = cardData["card_faces"][2]["image_uris"]["normal"]
-        createCard(name, cardFront, cardBack, Player[color], 0, index)
-        createCard(name, cardFront, magicBack, Player[color], -1, index)
+        createCard(name, cardFront, cardBack, Player[color], 0, index, customImg)
+        createCard(name, cardFront, magicBack, Player[color], -1, index, customImg)
     else
         if cardData["image_uris"] == nil then
-            printToAll("Can't find images for card: "..cardName, {r=255, g=255, b=255})
+            printToAll("Can't find images for card: "..cardName, {r=255, g=0, b=0})
         else
             cardFront = cardData["image_uris"]["normal"]
-            createCard(name, cardFront, magicBack, Player[color], 0, index)
+            createCard(name, cardFront, magicBack, Player[color], 0, index, customImg)
         end
     end
     
@@ -252,20 +262,20 @@ function parseRelatedCardData(data, color, url)
             )
             return
         else
-            printToAll("Related card not found: "..url, {r=255, g=255, b=255})
+            printToAll("Related card not found: "..url, {r=255, g=0, b=0})
             return
         end
     end
     local name = cardData["name"]
     if cardData["layout"] == "transform" or cardData["layout"] == "modal_dfc" then
         local cardFront = cardData["card_faces"][1]["image_uris"]["normal"]
-        createCard(name, cardFront, magicBack, Player[color], -1, 0)
+        createCard(name, cardFront, magicBack, Player[color], -1, 0, nil)
     elseif cardData["layout"] == "double_faced_token" then
         local cardFront = cardData["card_faces"][1]["image_uris"]["normal"]
         local cardBack = cardData["card_faces"][2]["image_uris"]["normal"]
-        createCard(name, cardFront, cardBack, Player[color], -1, 0)
+        createCard(name, cardFront, cardBack, Player[color], -1, 0, nil)
     else
         local cardFront = cardData["image_uris"]["normal"]
-        createCard(name, cardFront, magicBack, Player[color], -1, 0)
+        createCard(name, cardFront, magicBack, Player[color], -1, 0, nil)
     end
 end
