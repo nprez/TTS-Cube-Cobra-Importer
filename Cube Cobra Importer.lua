@@ -159,7 +159,7 @@ function parseCubeCobraData(data, color)
     for i, cardLine in ipairs(rows) do
         local card = split(cardLine, ",")
         if i ~= 1 and card[maybeBoardCol] == "false" then
-            local url = "https://api.scryfall.com/cards/"..string.gsub(card[setCol],"\"","").."/"..string.gsub(card[collectorCol],"\"","")
+            local url = "https://api.scryfall.com/cards/"..string.gsub(card[setCol],"\"","").."/"..string.gsub(card[collectorCol],"\"","").."/en"
             Wait.time(
                 function()
                     WebRequest.get(
@@ -197,7 +197,10 @@ function parseCardData(data, color, index, cardName, url, customImg)
             return
         end
     end
-    local name = cardData["name"]
+    local name = cardData["printed_name"]
+    if name == nil then
+        name = cardData["name"]
+    end
     local cardFront
     if cardData["card_faces"] ~= nil and #cardData["card_faces"] > 1 and cardData["card_faces"][1]["image_uris"] ~= nil then
         cardFront = cardData["card_faces"][1]["image_uris"]["normal"]
@@ -266,7 +269,10 @@ function parseRelatedCardData(data, color, url)
             return
         end
     end
-    local name = cardData["name"]
+    local name = cardData["printed_name"]
+    if name == nil then
+        name = cardData["name"]
+    end
     if cardData["layout"] == "transform" or cardData["layout"] == "modal_dfc" then
         local cardFront = cardData["card_faces"][1]["image_uris"]["normal"]
         createCard(name, cardFront, magicBack, Player[color], -1, 0, nil)
