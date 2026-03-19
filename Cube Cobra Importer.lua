@@ -4,6 +4,11 @@ local magicBack = "http://cloud-3.steamusercontent.com/ugc/1044218919659567154/7
 local delaySeconds = 0.1
 local retryDelaySeconds = 1
 
+local scryfallHeaders = {
+    Accept = "*/*",
+    ["User-Agent"] = "MTGReprintScript/1.0"
+}
+
 function urlencode (str)
     str = string.gsub (
         str,
@@ -124,8 +129,12 @@ self.createButton({
 function import(obj, color, alt_click)
     local url = "https://cubecobra.com/cube/download/csv/"..urlencode(cubeId)
     printToAll("Importing from "..url, {r=255, g=255, b=255})
-    WebRequest.get(
+    WebRequest.custom(
         url,
+        "GET",
+        true,
+        nil,
+        scryfallHeaders,
         function(data)
             if data.is_error then
                 printToAll(data.error, {r=255, g=0, b=0})
@@ -162,8 +171,12 @@ function parseCubeCobraData(data, color)
             local url = "https://api.scryfall.com/cards/"..string.gsub(card[setCol],"\"","").."/"..string.gsub(card[collectorCol],"\"","").."/en"
             Wait.time(
                 function()
-                    WebRequest.get(
+                    WebRequest.custom(
                         url,
+                        "GET",
+                        true,
+                        nil,
+                        scryfallHeaders,
                         function(data)
                             parseCardData(data, color, i, card[nameCol], url, card[customImgCol])
                         end
@@ -182,8 +195,12 @@ function parseCardData(data, color, index, cardName, url, customImg)
         if cardData["status"] == 429 then
             Wait.time(
                 function()
-                    WebRequest.get(
+                    WebRequest.custom(
                         url,
+                        "GET",
+                        true,
+                        nil,
+                        scryfallHeaders,
                         function(data)
                             parseCardData(data, color, index, cardName, url, customImg)
                         end
@@ -222,8 +239,12 @@ function parseCardData(data, color, index, cardName, url, customImg)
             if part["component"] == "token" or part["component"] == "meld_result" then
                 Wait.time(
                     function()
-                        WebRequest.get(
+                        WebRequest.custom(
                             part["uri"],
+                            "GET",
+                            true,
+                            nil,
+                            scryfallHeaders,
                             function(data)
                                 parseRelatedCardData(data, color, part["uri"])
                             end
@@ -234,8 +255,12 @@ function parseCardData(data, color, index, cardName, url, customImg)
             elseif part["component"] == "combo_piece" and string.find(part["type_line"], "Emblem", 1, true) then
                 Wait.time(
                     function()
-                        WebRequest.get(
+                        WebRequest.custom(
                             part["uri"],
+                            "GET",
+                            true,
+                            nil,
+                            scryfallHeaders,
                             function(data)
                                 parseRelatedCardData(data, color, part["uri"])
                             end
@@ -255,7 +280,12 @@ function parseRelatedCardData(data, color, url)
         if cardData["status"] == 429 then
             Wait.time(
                 function()
-                    WebRequest.get(url,
+                    WebRequest.custom(
+                        url,
+                        "GET",
+                        true,
+                        nil,
+                        scryfallHeaders,
                         function(data)
                             parseRelatedCardData(data, color, url)
                         end
