@@ -69,7 +69,7 @@ function csvSplit(str)
     return t
 end
 
-function createCard(name, cardFace, cardBack, player, hOffset, cubeIndex, customImg)
+function createCard(name, cardFace, cardBack, player, hOffset, cubeIndex, customImg, customBackImg)
     local customCardData = {
         face = cardFace,
         back = cardBack
@@ -77,6 +77,10 @@ function createCard(name, cardFace, cardBack, player, hOffset, cubeIndex, custom
     if customImg ~= nil and #customImg > 0 then
         customImg = string.sub(customImg, 2, #customImg-1)
         customCardData.face = customImg
+    end
+    if customBackImg ~= nil and #customBackImg > 0 then
+        customBackImg = string.sub(customBackImg, 2, #customBackImg-1)
+        customCardData.back = customBackImg
     end
 
     local playerSeat = player.getHandTransform()
@@ -151,8 +155,10 @@ function parseCubeCobraData(data, color)
     local nameCol = 1
     local setCol = 5
     local collectorCol = 6
-    local maybeBoardCol = 11
-    local customImgCol = 12
+    local boardCol = 11
+    local maybeBoardCol = 12
+    local customImgCol = 13
+    local customBackImgCol = 14
     for i,columnHeader in ipairs(headers) do
         if columnHeader == "Name" then
             nameCol = i
@@ -160,14 +166,20 @@ function parseCubeCobraData(data, color)
             setCol = i
         elseif columnHeader == "Collector Number" then
             collectorCol = i
+        elseif columnHeader == "board" then
+            boardCol = i
         elseif columnHeader == "Maybeboard" then
             maybeBoardCol = i
+        elseif columnHeader == "image URL" then
+            customImgCol = i
+        elseif columnHeader == "image Back URL" then
+            customBackImgCol = i
         end
     end
     
     for i, cardLine in ipairs(rows) do
         local card = split(cardLine, ",")
-        if i ~= 1 and card[maybeBoardCol] == "false" then
+        if i ~= 1 and card[maybeBoardCol] == "false" and card[boardCol] ~= "basics" then
             local url = "https://api.scryfall.com/cards/"..string.gsub(card[setCol],"\"","").."/"..string.gsub(card[collectorCol],"\"","").."/en"
             Wait.time(
                 function()
@@ -178,7 +190,7 @@ function parseCubeCobraData(data, color)
                         nil,
                         scryfallHeaders,
                         function(data)
-                            parseCardData(data, color, i, card[nameCol], url, card[customImgCol])
+                            parseCardData(data, color, i, card[nameCol], url, card[customImgCol], card[customBackImgCol])
                         end
                     )
                 end,
@@ -188,7 +200,7 @@ function parseCubeCobraData(data, color)
     end
 end
 
-function parseCardData(data, color, index, cardName, url, customImg)
+function parseCardData(data, color, index, cardName, url, customImg, customBackImg)
     local cardData = JSON.decode(data.text)
     local status, err = pcall(function () JSON.decode(data.text) end)
     if data.is_error or not status or cardData["status"] == 429 then
@@ -202,7 +214,7 @@ function parseCardData(data, color, index, cardName, url, customImg)
                         nil,
                         scryfallHeaders,
                         function(data)
-                            parseCardData(data, color, index, cardName, url, customImg)
+                            parseCardData(data, color, index, cardName, url, customImg, customBackImg)
                         end
                     )
                 end,
@@ -222,14 +234,14 @@ function parseCardData(data, color, index, cardName, url, customImg)
     if cardData["card_faces"] ~= nil and #cardData["card_faces"] > 1 and cardData["card_faces"][1]["image_uris"] ~= nil then
         cardFront = cardData["card_faces"][1]["image_uris"]["normal"]
         local cardBack = cardData["card_faces"][2]["image_uris"]["normal"]
-        createCard(name, cardFront, cardBack, Player[color], 0, index, customImg)
-        createCard(name, cardFront, magicBack, Player[color], -1, index, customImg)
+        createCard(name, cardFront, cardBack, Player[color], 0, index, customImg, customBackImg)
+        createCard(name, cardFront, magicBack, Player[color], -1, index, customImg, customBackImg)
     else
         if cardData["image_uris"] == nil then
             printToAll("Can't find images for card: "..cardName, {r=255, g=0, b=0})
         else
             cardFront = cardData["image_uris"]["normal"]
-            createCard(name, cardFront, magicBack, Player[color], 0, index, customImg)
+            createCard(name, cardFront, magicBack, Player[color], 0, index, customImg, customBackImg)
         end
     end
     
@@ -305,13 +317,13 @@ function parseRelatedCardData(data, color, url)
     end
     if cardData["layout"] == "transform" or cardData["layout"] == "modal_dfc" then
         local cardFront = cardData["card_faces"][1]["image_uris"]["normal"]
-        createCard(name, cardFront, magicBack, Player[color], -1, 0, nil)
+        createCard(name, cardFront, magicBack, Player[color], -1, 0, nil, nil)
     elseif cardData["layout"] == "double_faced_token" then
         local cardFront = cardData["card_faces"][1]["image_uris"]["normal"]
         local cardBack = cardData["card_faces"][2]["image_uris"]["normal"]
-        createCard(name, cardFront, cardBack, Player[color], -1, 0, nil)
+        createCard(name, cardFront, cardBack, Player[color], -1, 0, nil, nil)
     else
         local cardFront = cardData["image_uris"]["normal"]
-        createCard(name, cardFront, magicBack, Player[color], -1, 0, nil)
+        createCard(name, cardFront, magicBack, Player[color], -1, 0, nil, nil)
     end
 end
