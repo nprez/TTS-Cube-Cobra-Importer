@@ -1,6 +1,9 @@
 local cubeId = ""
 local magicBack = "http://cloud-3.steamusercontent.com/ugc/1044218919659567154/72AEBC61B3958199DE4389B0A934D68CE53D030B/"
 
+local cubeCobraURL = "https://cubecobra.com/cube/download/csv/";
+local scryfallURL = "https://api.scryfall.com/cards/";
+
 local delaySeconds = 0.1
 local retryDelaySeconds = 1
 
@@ -131,7 +134,7 @@ self.createButton({
 })
 
 function import(obj, color, alt_click)
-    local url = "https://cubecobra.com/cube/download/csv/"..urlencode(cubeId)
+    local url = cubeCobraURL..urlencode(cubeId)
     printToAll("Importing from "..url, {r=255, g=255, b=255})
     WebRequest.custom(
         url,
@@ -180,7 +183,7 @@ function parseCubeCobraData(data, color)
     for i, cardLine in ipairs(rows) do
         local card = split(cardLine, ",")
         if i ~= 1 and card[maybeBoardCol] == "false" and card[boardCol] ~= "basics" then
-            local url = "https://api.scryfall.com/cards/"..string.gsub(card[setCol],"\"","").."/"..string.gsub(card[collectorCol],"\"","").."/en"
+            local url = scryfallURL..string.gsub(card[setCol],"\"","").."/"..string.gsub(card[collectorCol],"\"","").."/en"
             Wait.time(
                 function()
                     WebRequest.custom(
