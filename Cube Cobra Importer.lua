@@ -77,11 +77,9 @@ function createCard(name, cardFace, cardBack, player, hOffset, cubeIndex, custom
         back = cardBack
     }
     if customImg ~= nil and #customImg > 0 then
-        customImg = string.sub(customImg, 2, #customImg-1)
         customCardData.face = customImg
     end
     if customBackImg ~= nil and #customBackImg > 0 then
-        customBackImg = string.sub(customBackImg, 2, #customBackImg-1)
         customCardData.back = customBackImg
     end
 
@@ -105,6 +103,7 @@ function createCard(name, cardFace, cardBack, player, hOffset, cubeIndex, custom
     if name ~= nil then
         newCard.setName(name)
     end
+    
     newCard.setCustomObject(customCardData)
 end
 
