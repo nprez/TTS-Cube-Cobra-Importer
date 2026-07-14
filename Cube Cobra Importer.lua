@@ -4,7 +4,7 @@ local magicBack = "https://steamusercontent-a.akamaihd.net/ugc/16484457864693312
 local cubeCobraURL = "https://cubecobra.com/cube/api/cubeJSON/";
 local cubeCobraTokenURL = "https://assets.cubecobra.com/cardimages/";
 
-local delaySeconds = 0.1
+local delaySeconds = 0.3
 
 local headers = {
     Accept = "*/*",
@@ -154,7 +154,11 @@ function import(obj, color, alt_click)
 end
 
 function parseCubeCobraData(data, color)
-    for i, card in ipairs(data["cards"]["mainboard"]) do
+    local mainboardCards = data["cards"]["mainboard"]
+    local totalCards = #mainboardCards
+    
+    for i=1,totalCards do
+        local card = mainboardCards[i]
         local cardName = card["details"]["name"]
         local cardFront = card["details"]["image_normal"]
         local cardBack = card["details"]["image_flip"]
