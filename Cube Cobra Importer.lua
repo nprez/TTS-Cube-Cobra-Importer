@@ -1,13 +1,12 @@
 local cubeId = ""
-local magicBack = "http://cloud-3.steamusercontent.com/ugc/1044218919659567154/72AEBC61B3958199DE4389B0A934D68CE53D030B/"
+local magicBack = "https://steamusercontent-a.akamaihd.net/ugc/16484457864693312264/CEB9227AD5C35A1561B0F3F8AE6975656A0B066E/"
 
-local cubeCobraURL = "https://cubecobra.com/cube/download/csv/";
-local scryfallURL = "https://api.scryfall.com/cards/";
+local cubeCobraURL = "https://cubecobra.com/cube/api/cubeJSON/";
+local cubeCobraTokenURL = "https://assets.cubecobra.com/cardimages/";
 
 local delaySeconds = 0.1
-local retryDelaySeconds = 1
 
-local scryfallHeaders = {
+local headers = {
     Accept = "*/*",
     ["User-Agent"] = "MTGReprintScript/1.0"
 }
@@ -103,7 +102,9 @@ function createCard(name, cardFace, cardBack, player, hOffset, cubeIndex, custom
     }
 
     local newCard = spawnObject(spawnData)
-    newCard.setName(name)
+    if name ~= nil then
+        newCard.setName(name)
+    end
     newCard.setCustomObject(customCardData)
 end
 
@@ -141,192 +142,55 @@ function import(obj, color, alt_click)
         "GET",
         true,
         nil,
-        scryfallHeaders,
+        headers,
         function(data)
             if data.is_error then
                 printToAll(data.error, {r=255, g=0, b=0})
             else
-               parseCubeCobraData(data, color) 
+               parseCubeCobraData(JSON.decode(data.text), color) 
             end
         end
     )
 end
 
 function parseCubeCobraData(data, color)
-    local rows = split(string.gsub(data.text,"\r",""), "\n")
-    local headers = split(rows[1], ",")
-    local nameCol = 1
-    local setCol = 5
-    local collectorCol = 6
-    local boardCol = 11
-    local maybeBoardCol = 12
-    local customImgCol = 13
-    local customBackImgCol = 14
-    for i,columnHeader in ipairs(headers) do
-        if columnHeader == "Name" then
-            nameCol = i
-        elseif columnHeader == "Set" then
-            setCol = i
-        elseif columnHeader == "Collector Number" then
-            collectorCol = i
-        elseif columnHeader == "board" then
-            boardCol = i
-        elseif columnHeader == "Maybeboard" then
-            maybeBoardCol = i
-        elseif columnHeader == "image URL" then
-            customImgCol = i
-        elseif columnHeader == "image Back URL" then
-            customBackImgCol = i
+    for i, card in ipairs(data["cards"]["mainboard"]) do
+        local cardName = card["details"]["name"]
+        local cardFront = card["details"]["image_normal"]
+        local cardBack = card["details"]["image_flip"]
+        local isDFC = cardBack ~= nil
+        if not isDFC then
+            cardBack = magicBack
         end
-    end
-    
-    for i, cardLine in ipairs(rows) do
-        local card = split(cardLine, ",")
-        if i ~= 1 and card[maybeBoardCol] == "false" and card[boardCol] ~= "basics" then
-            local url = scryfallURL..string.gsub(card[setCol],"\"","").."/"..string.gsub(card[collectorCol],"\"","").."/en"
-            Wait.time(
-                function()
-                    WebRequest.custom(
-                        url,
-                        "GET",
-                        true,
-                        nil,
-                        scryfallHeaders,
-                        function(data)
-                            parseCardData(data, color, i, card[nameCol], url, card[customImgCol], card[customBackImgCol])
-                        end
+        local customImg = card["imgUrl"]
+        local customBackImg = card["imgBackUrl"]
+        
+        Wait.time(
+            function()
+                createCard(cardName, cardFront, cardBack, Player[color], 0, i, customImg, customBackImg)
+                if isDFC then
+                    Wait.time(
+                        function()
+                            createCard(cardName, cardFront, magicBack, Player[color], -1, i, customImg, customBackImg)
+                        end,
+                        delaySeconds
                     )
-                end,
-                delaySeconds
-            )
-        end
-    end
-end
-
-function parseCardData(data, color, index, cardName, url, customImg, customBackImg)
-    local cardData = JSON.decode(data.text)
-    local status, err = pcall(function () JSON.decode(data.text) end)
-    if data.is_error or not status or cardData["status"] == 429 then
-        if cardData["status"] == 429 then
-            Wait.time(
-                function()
-                    WebRequest.custom(
-                        url,
-                        "GET",
-                        true,
-                        nil,
-                        scryfallHeaders,
-                        function(data)
-                            parseCardData(data, color, index, cardName, url, customImg, customBackImg)
-                        end
-                    )
-                end,
-                retryDelaySeconds
-            )
-            return
-        else
-            printToAll("Card not found: "..cardName, {r=255, g=0, b=0})
-            return
-        end
-    end
-    local name = cardData["printed_name"]
-    if name == nil then
-        name = cardData["name"]
-    end
-    local cardFront
-    if cardData["card_faces"] ~= nil and #cardData["card_faces"] > 1 and cardData["card_faces"][1]["image_uris"] ~= nil then
-        cardFront = cardData["card_faces"][1]["image_uris"]["normal"]
-        local cardBack = cardData["card_faces"][2]["image_uris"]["normal"]
-        createCard(name, cardFront, cardBack, Player[color], 0, index, customImg, customBackImg)
-        createCard(name, cardFront, magicBack, Player[color], -1, index, customImg, customBackImg)
-    else
-        if cardData["image_uris"] == nil then
-            printToAll("Can't find images for card: "..cardName, {r=255, g=0, b=0})
-        else
-            cardFront = cardData["image_uris"]["normal"]
-            createCard(name, cardFront, magicBack, Player[color], 0, index, customImg, customBackImg)
-        end
-    end
-    
-    --get related cards
-    if cardData["all_parts"] then
-        for _,part in ipairs(cardData["all_parts"]) do
-            if part["component"] == "token" or part["component"] == "meld_result" then
-                Wait.time(
-                    function()
-                        WebRequest.custom(
-                            part["uri"],
-                            "GET",
-                            true,
-                            nil,
-                            scryfallHeaders,
-                            function(data)
-                                parseRelatedCardData(data, color, part["uri"])
-                            end
+                end
+                
+                local tokens = card["details"]["tokens"]
+                if tokens ~= nil then
+                    for j, token in ipairs(tokens) do
+                        Wait.time(
+                            function()
+                                local tokenUrl = cubeCobraTokenURL..token.."/normal.webp"
+                                createCard(nil, tokenUrl, magicBack, Player[color], -1, j, nil, nil)
+                            end,
+                            delaySeconds
                         )
-                    end,
-                    delaySeconds
-                )
-            elseif part["component"] == "combo_piece" and string.find(part["type_line"], "Emblem", 1, true) then
-                Wait.time(
-                    function()
-                        WebRequest.custom(
-                            part["uri"],
-                            "GET",
-                            true,
-                            nil,
-                            scryfallHeaders,
-                            function(data)
-                                parseRelatedCardData(data, color, part["uri"])
-                            end
-                        )
-                    end,
-                    delaySeconds
-                )
-            end
-        end
-    end
-end
-
-function parseRelatedCardData(data, color, url)
-    local cardData = JSON.decode(data.text)
-    local status, err = pcall(function () JSON.decode(data.text) end)
-    if data.is_error or not status or cardData["status"] == 429 then
-        if cardData["status"] == 429 then
-            Wait.time(
-                function()
-                    WebRequest.custom(
-                        url,
-                        "GET",
-                        true,
-                        nil,
-                        scryfallHeaders,
-                        function(data)
-                            parseRelatedCardData(data, color, url)
-                        end
-                    )
-                end,
-                retryDelaySeconds
-            )
-            return
-        else
-            printToAll("Related card not found: "..url, {r=255, g=0, b=0})
-            return
-        end
-    end
-    local name = cardData["printed_name"]
-    if name == nil then
-        name = cardData["name"]
-    end
-    if cardData["layout"] == "transform" or cardData["layout"] == "modal_dfc" then
-        local cardFront = cardData["card_faces"][1]["image_uris"]["normal"]
-        createCard(name, cardFront, magicBack, Player[color], -1, 0, nil, nil)
-    elseif cardData["layout"] == "double_faced_token" then
-        local cardFront = cardData["card_faces"][1]["image_uris"]["normal"]
-        local cardBack = cardData["card_faces"][2]["image_uris"]["normal"]
-        createCard(name, cardFront, cardBack, Player[color], -1, 0, nil, nil)
-    else
-        local cardFront = cardData["image_uris"]["normal"]
-        createCard(name, cardFront, magicBack, Player[color], -1, 0, nil, nil)
+                    end
+                end
+            end,
+            delaySeconds
+        )
     end
 end
